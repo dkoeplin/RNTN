@@ -198,8 +198,8 @@ trait RNTNTrainer extends OptiMLApplication with RNTNOps with Utilities {
 		// WORDSIZE X (WORDSIZE * 2) X (WORDSIZE * 2)
 		val WtF = DenseMatrix.randn(WORDSIZE*sizeWt, sizeWt) * (2*rangeWt) - rangeWt
 
-		// weights associated with individual phrases
-		val WvF = DenseMatrix.randn(WORDSIZE, numWords) * 0.1
+		// weights associated with individual phrases (each row belongs to a word)
+		val WvF = DenseMatrix.randn(numWords, WORDSIZE) * 0.1
 
 		val Wc = WcF.mutable
 		val W  = WF.mutable

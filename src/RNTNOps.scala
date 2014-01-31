@@ -45,8 +45,8 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 		Wv:   	  Rep[DenseMatrix[Double]]
 	) = {
 		val lKid = node(LKID)
-		val act = 	if 		(lKid == -1 && WORDI) { Wv.getCol(node(WORD)).toDense }
-					else if (lKid == -1)	  	  { Wv.getCol(node(WORD)).map(d => tanh(d)) }
+		val act = 	if 		(lKid == -1 && WORDI) { Wv(node(WORD)).t }
+					else if (lKid == -1)	  	  { Wv(node(WORD)).map(d => tanh(d)).t }
 					else {
 						val ab = kidsActs(lKid) << kidsActs(node(RKID))
 						val quad = 	(0::WORDSIZE) {
@@ -120,7 +120,7 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 		val dWc_tree = DenseMatrix[Double](NUMCLASSES, WORDSIZE + 1)
 		val dW_tree  = DenseMatrix[Double](WORDSIZE, WORDSIZE*2 + 1)
 		val dWt_tree = DenseMatrix[Double](WORDSIZE*WORDSIZE*2, WORDSIZE*2)
-		val dWv_tree = DenseMatrix[Double](WORDSIZE, Wv.numCols)
+		val dWv_tree = DenseMatrix[Double](Wv.numRows, WORDSIZE)
 
 		var curLevel = 0
 		var deltas = DenseVector[DenseVector[Double]](DenseVector.zeros(WORDSIZE).t)
@@ -196,7 +196,7 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 										 else { deltaDownBothVec(WORDSIZE::2*WORDSIZE) * ab(WORDSIZE::2*WORDSIZE).map(d => 1 - d*d) }
 				}
 				else {
-					dWv_level(n - numParents) = (*, 0::Wv.numCols) {w => if (w == node(WORD)) deltaDownFull else DenseVector.zeros(WORDSIZE) }
+					dWv_level(n - numParents) = (0::Wv.numRows, *) {w => if (w == node(WORD)) deltaDownFull else DenseVector.zeros(WORDSIZE) }
 				}
 				(dWc)
 			}
@@ -211,7 +211,7 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 			}
 
 			curLevel += 1
-			deltas = deltas_level.map(d => d)
+			deltas = deltas_level.Clone
 		}	
 		verbosePrint("			Completed backward propagation of tree", VERBOSE)
 		(dWc_tree, dW_tree, dWt_tree, dWv_tree)
@@ -236,35 +236,15 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 		tic("Batch Run")
 		val costs_batch = (0::curBatchSize) { t => 
 			verbosePrint("		Training on tree " + t, VERBOSE)
-			tic("Current tree")
+			tic("Train tree")
 			val tree = trees(t)
-			tic("Forward Propagation")
 			val (acts, outs, cost) = forwardPropTree(tree, Wc, W, Wt, Wv)
-			toc("Forward Propagation")
-			tic("Backward Propagation")
 			val (dWc, dW, dWt, dWv) = backwardPropTree(tree, Wc, W, Wt, Wv, acts, outs)
-			toc("Backward Propagation")
-			toc("Current tree")
-			tic("Batch value update")
-			verbosePrint("		Updating batch values", VERBOSE)
+			toc("Train tree")
 			dWc_batch(t) = dWc
 			dW_batch(t)  = dW
 			dWt_batch(t) = dWt
 			dWv_batch(t) = dWv
-			toc("Batch value update")
-			/*val numNodes = tree.map(level => level.numRows).sum
-			val actsMatrix = DenseMatrix.zeros(WORDSIZE, numNodes)
-			val outsMatrix = DenseMatrix.zeros(NUMCLASSES, numNodes)
-			(0::tree.length) foreach {level =>
-				(0::tree(level).numRows) foreach {node =>
-					val name = tree(level).apply(node, NAME)
-					actsMatrix.updateCol(name, acts(level).apply(node)) 
-					outsMatrix.updateCol(name, outs(level).apply(node))
-				}
-			}
-			writeMatrix(actsMatrix.t, "/home/david/PPL/outputs/tree" + t + "_acts.txt")
-			writeMatrix(outsMatrix.t, "/home/david/PPL/outputs/tree" + t + "_outs.txt")*/
-			
 			(cost)
 		}
 		verbosePrint("		Trees completed", VERBOSE)
@@ -273,11 +253,9 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 		verbosePrint("		Computing final deltas", VERBOSE)
 		tic("Final computation")
 
-		val Wshort = W.getCols(0::2*WORDSIZE)
-
 		val numSent = curBatchSize.toDouble
 		val dfWc = dWc_batch.sum * (1/numSent) + (Wc * regC_Wc)
-		val dfW  = dW_batch.sum * (1/numSent) + ((Wshort <<| DenseVector.zeros(WORDSIZE)) * regC_W)
+		val dfW  = dW_batch.sum * (1/numSent) + ( (W(*, 0::2*WORDSIZE) * regC_W ) <<| DenseVector.zeros(WORDSIZE) ) 
  		val dfWt = dWt_batch.sum * (1/numSent) + Wt * regC_Wt
 		val dfWv = dWv_batch.sum * (1/numSent) + Wv * regC_Wv
 		val cost = costs_batch.sum * (1/numSent)
@@ -285,12 +263,11 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 		verbosePrint("		Total cost without regularization: " + cost, VERBOSE)
 	
 		val regularCost = cost + ( Wc.map(e => e*e).sum * regC_Wc/2 ) + 
-								 ( Wshort.map(e => e*e).sum * regC_W/2 ) +
+								 ( W(*, 0::2*WORDSIZE).map(e => e*e).sum * regC_W/2 ) +
 							     ( Wt.map(e => e*e).sum * 0.001/2 ) + 
 							     ( Wv.map(e => e*e).sum * regC_Wv/2 ) 
 		
 		verbosePrint("		Total cost with regularization: " + regularCost, VERBOSE)
-		//(dfWcat, W, Wt, Wv, numSent)
 		verbosePrint("		Computation complete. Batch run is done.", VERBOSE)
 		toc("Final computation")
 
@@ -315,10 +292,10 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 		val batchInds = IndexVector(unmappedTrees.flatMap(tree => tree.flatMap(level => level.getCol(WORD).toDense)).distinct)
 
 		verbosePrint("		Creating word vector for batch", VERBOSE)
-		val batchWv = Wv.getCols(batchInds)
+		val batchWv = Wv(batchInds)
 
 		// map phrase numbers to batchWv based on filtered word indices
-		val batchMapInit = DenseVector[Int](Wv.numCols, true)
+		val batchMapInit = DenseVector[Int](Wv.numRows, true)
 		batchMapInit.update(batchInds, 1::batchInds.length+1)
 		val batchMap = batchMapInit - 1
 
@@ -376,10 +353,10 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 				setMatrix(ssWc, dfWcSq)
 				setMatrix(ssW, dfWSq)
 				setMatrix(ssWt, dfWtSq)
-				(0::Wv.numCols) foreach { word =>
+				(0::Wv.numRows) foreach { word =>
 					val batchIndex = batchMap(word)
-					if (batchIndex == -1) {ssWv.updateCol(word, DenseVector.zeros(Wv.numRows))}
-					else				  {ssWv.updateCol(word, dfBatchWvSq.getCol(batchIndex).toDense)}
+					if (batchIndex == -1) {ssWv(word) = DenseVector.zeros(WORDSIZE)}
+					else				  {ssWv(word) = dfBatchWvSq(batchIndex)}
 				}
 			}
 			else {
@@ -387,7 +364,7 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 				ssW  += dfWSq
 				ssWt += dfWtSq
 				(batchInds) foreach { word =>
-					ssWv.updateCol(word, ssWv.getCol(word) + dfBatchWvSq.getCol(batchMap(word)))
+					ssWv(word) = ssWv(word) + dfBatchWvSq(batchMap(word))
 				}
 			}
 
@@ -395,7 +372,7 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 			val dWc 	 = (dfWc * LR) / ssWc.map(e => sqrt(e) + ADAEPS)
 			val dW    	 = (dfW  * LR) / ssW.map(e => sqrt(e) + ADAEPS)
 			val dWt  	 = (dfWt * LR) / ssWt.map(e => sqrt(e) + ADAEPS)
-			val dBatchWv = (dfBatchWv * LR) / ssWv(*, batchInds).map(e => sqrt(e) + ADAEPS)
+			val dBatchWv = (dfBatchWv * LR) / ssWv(batchInds).map(e => sqrt(e) + ADAEPS)
 
 			verbosePrint("		[TRAINING] Calculating new weights...", VERBOSE)
 			Wc -= dWc
@@ -403,9 +380,9 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 			Wt -= dWt
 			val batchWv_new = batchWv - dBatchWv
 
-			verbosePrint("		[TRAINING] Calculating new Wv...", VERBOSE)
+			verbosePrint("		[TRAINING] Updating Wv...", VERBOSE)
 			(batchInds) foreach { word =>
-				Wv.updateCol(word, batchWv_new.getCol(batchMap(word)))
+				Wv(word) = batchWv_new(batchMap(word))
 			}
 
 			batchIter += 1
