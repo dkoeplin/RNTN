@@ -163,6 +163,7 @@ trait RNTNTrainer extends OptiMLApplication with RNTNOps with Utilities {
 		val numTrees = allTrees.length
 
 		val trainTrees = allTrees(trainIndices)
+		
 		val (trainBatches, trainWords) = createEvalBatches(trainTrees, EVALBATCHSIZE)
 		val (devBatches, devWords) = createEvalBatches(allTrees(devIndices), EVALBATCHSIZE)
 		val (testBatches, testWords) = createEvalBatches(allTrees(testIndices), EVALBATCHSIZE)
@@ -220,7 +221,7 @@ trait RNTNTrainer extends OptiMLApplication with RNTNOps with Utilities {
 		// -------------------------------------------------------------------------------------//
 		//								Run Training and Evaluation						  		//
 		// -------------------------------------------------------------------------------------//
-		val numTrainBatches     = ceil(trainTrees.length.toDouble/TRAINBATCHSIZE)
+		val numTrainBatches = ceil(trainTrees.length.toDouble/TRAINBATCHSIZE)
 		println("Training " + trainTrees.length + " training set trees in " + numTrainBatches + " batches")
 
 	   	var runIter = 1

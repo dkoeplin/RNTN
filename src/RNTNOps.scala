@@ -374,20 +374,10 @@ trait RNTNOps extends OptiMLApplication with Utilities {
                 			val word = level(node, WORD)
                 			if (word >= 0) { batchMap(word) } else { word } 
                 		}
-                    	else             { level(node, col) }
+                    	else { level(node, col) }
             		}
             	)	 
-        	)
-        	/* (0::unmappedTrees.length) { t =>
-        	val tree = unmappedTrees(t)
-				(0::t.length) { l =>
-					val level = t(l)
-					(*, 0::TREECOLS) {
-						if (col == WORD) {level.getCol(WORD).map(w => if (w >= 0) {batchMap(w)} else w)}
-						else 			 {level.getCol(col)}
-					}	
-				}
-	        } */
+        	) 
   			pack(batchTrees, batchInds)
         }
         (batches.map(_._1), batches.map(_._2))
