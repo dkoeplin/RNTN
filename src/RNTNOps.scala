@@ -430,7 +430,7 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 	// -------------------------------------------------------------------------------------//
 	def evalOnTrees(
 		batches: Rep[DenseVector[DenseVector[DenseVector[DenseMatrix[Int]]]]],
-		inds: 	 Rep[DenseVector[IndexVector]],
+		words: 	 Rep[DenseVector[IndexVector]],
 		Wc:      Rep[DenseMatrix[Double]],				// NUMCLASSES X (WORDSIZE + 1)
 		W:	     Rep[DenseMatrix[Double]],				// WORDSIZE X (WORDSIZE * 2 + 1)
 		Wt:      Rep[DenseMatrix[Double]],				// WORDSIZE X [(WORDSIZE * 2) X (WORDSIZE * 2)]
@@ -438,21 +438,16 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 	) {
 		tic("All Batches")
 		val results = (0::batches.length) { i =>
-			verbosePrint("	Starting batch " + (i + 1) + "/" + numBatches, VERBOSE)
 			tic("Current Batch")
-
 			val batchTrees = batches(i)
 			val allNodesLabels = batchTrees.map(tree => tree.flatMap(level => level.getCol(LABEL)))
 			val nodeBinaryTotal = allNodesLabels.map(tree => tree.count(label => label != NEUTRALLABEL)).sum
 			val rootBinaryTotal = allNodesLabels.count(tree => tree(0) != NEUTRALLABEL)
 
 			val curBatchSize = batchTrees.length
-			verbosePrint("		Running trees...", VERBOSE)
 			val treesCorrect = (0::curBatchSize) { t =>
-				verbosePrint("		Activating tree " + t, VERBOSE)
-				tic("Tree Activation")
-				val outs = DenseVector.flatten( activateTree(batchTrees(t), Wc, W, Wt, Wv(inds(i)) ) )
-				toc("Tree Activation")
+				val outs = DenseVector.flatten( activateTree(batchTrees(t), Wc, W, Wt, Wv(words(i)) ) )
+
 				val binaryActs = outs.map(output => output(3) + output(4) > output(0) + output(1))	// assumes NUMCLASSES = 5
 				val labelsBinaryMatch = binaryActs.zip(allNodesLabels(t)) {(l1, l2) => (l1 && (l2 > NEUTRALLABEL)) || (!l1 && (l2 < NEUTRALLABEL))}
 				
@@ -467,10 +462,10 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 			if (VERBOSE) {
 				val percentRootsBatch = correctRoots.toDouble / rootBinaryTotal
 				val percentNodesBatch = correctNodes.toDouble / nodeBinaryTotal
-				println("----------------- Batch complete -----------------")
+				println("----------------- Batch " + (i + 1) + "/" + batches.length + " complete -----------------")
 				println("Root binary accuracy over all trees in batch: " + percentRootsBatch + "  ( " + correctRoots + "/" + rootBinaryTotal + " )")	
 				println("Node binary accuracy over all trees in batch: " + percentNodesBatch + "  (" + correctNodes + "/" + nodeBinaryTotal + " )")
-				println("--------------------------------------------------")
+				println("---------------------------------------------------------")
 			}
 			
 			toc("Current Batch")
