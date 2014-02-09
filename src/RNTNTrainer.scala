@@ -163,10 +163,12 @@ trait RNTNTrainer extends OptiMLApplication with RNTNOps with Utilities {
 		val numTrees = allTrees.length
 
 		val trainTrees = allTrees(trainIndices)
+		val devTrees   = allTrees(devIndices)
+		val testTrees  = allTrees(testIndices)
 		
-		val (trainBatches, trainWords) = createEvalBatches(trainTrees, EVALBATCHSIZE)
-		val (devBatches, devWords) = createEvalBatches(allTrees(devIndices), EVALBATCHSIZE)
-		val (testBatches, testWords) = createEvalBatches(allTrees(testIndices), EVALBATCHSIZE)
+		//val (trainBatches, trainWords) = createEvalBatches(trainTrees, EVALBATCHSIZE)
+		//val (devBatches, devWords) = createEvalBatches(allTrees(devIndices), EVALBATCHSIZE)
+		//val (testBatches, testWords) = createEvalBatches(allTrees(testIndices), EVALBATCHSIZE)
 
 		println("Data loaded. " + numTrees + " phrase trees with " + numWords + " total words")
 		// -------------------------------------------------------------------------------------//
@@ -221,7 +223,10 @@ trait RNTNTrainer extends OptiMLApplication with RNTNOps with Utilities {
 		// -------------------------------------------------------------------------------------//
 		//								Run Training and Evaluation						  		//
 		// -------------------------------------------------------------------------------------//
-		val numTrainBatches = ceil(trainTrees.length.toDouble/TRAINBATCHSIZE)
+		val numTrainBatches 	= ceil(trainTrees.length.toDouble/TRAINBATCHSIZE)
+		val numTrainEvalBatches = ceil(trainTrees.length.toDouble/EVALBATCHSIZE)
+		val numDevBatches 		= ceil(devTrees.length.toDouble/EVALBATCHSIZE)
+		val numTestBatches 		= ceil(testTrees.length.toDouble/EVALBATCHSIZE)
 		println("Training " + trainTrees.length + " training set trees in " + numTrainBatches + " batches")
 
 	   	var runIter = 1
@@ -231,11 +236,11 @@ trait RNTNTrainer extends OptiMLApplication with RNTNOps with Utilities {
 			//println("Completed run " + runIter + "/" + RUNSTHROUGHDATA)
 			//println("")
 			println(" --------------------- Train Set Accuracy (After " + runIter + "/" + RUNSTHROUGHDATA + ") --------------------- ")
-			evalOnTrees(trainBatches, trainWords, Wc, W, Wt, Wv)
+			evalOnTrees(trainTrees, Wc, W, Wt, Wv, EVALBATCHSIZE, numTrainEvalBatches)
 			println("-----------------------------------------------------------------------------")
 			
 	   		println(" --------------------- Dev Set Accuracy (After " + runIter + "/" + RUNSTHROUGHDATA + ") --------------------- ")
-			evalOnTrees(devBatches, devWords, Wc, W, Wt, Wv)
+			evalOnTrees(devTrees, Wc, W, Wt, Wv, EVALBATCHSIZE, numDevBatches)
 			println("-----------------------------------------------------------------------------")
 			println("")
 			//println("Writing out results...")
@@ -247,7 +252,7 @@ trait RNTNTrainer extends OptiMLApplication with RNTNOps with Utilities {
 		}		
 
 		println("-------------------------- Test Set Final Accuracy --------------------------")
-		evalOnTrees(testBatches, testWords, Wc, W, Wt, Wv)
+		evalOnTrees(testTrees, Wc, W, Wt, Wv, EVALBATCHSIZE, numTestBatches)
 		println("-----------------------------------------------------------------------------")
 	}	// end of main
 

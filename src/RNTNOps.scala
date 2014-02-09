@@ -419,24 +419,29 @@ trait RNTNOps extends OptiMLApplication with Utilities {
 	//						Activate all Trees for Accuracy Checking					  	//
 	// -------------------------------------------------------------------------------------//
 	def evalOnTrees(
-		batches: Rep[DenseVector[DenseVector[DenseVector[DenseMatrix[Int]]]]],
-		words: 	 Rep[DenseVector[IndexVector]],
+		//batches: Rep[DenseVector[DenseVector[DenseVector[DenseMatrix[Int]]]]],
+		//words: 	 Rep[DenseVector[IndexVector]],
+		trees:   Rep[DenseVector[DenseVector[DenseMatrix[Int]]]],
 		Wc:      Rep[DenseMatrix[Double]],				// NUMCLASSES X (WORDSIZE + 1)
 		W:	     Rep[DenseMatrix[Double]],				// WORDSIZE X (WORDSIZE * 2 + 1)
 		Wt:      Rep[DenseMatrix[Double]],				// WORDSIZE X [(WORDSIZE * 2) X (WORDSIZE * 2)]
-		Wv:	     Rep[DenseMatrix[Double]] 				// WORDSIZE X allPhrases.length
+		Wv:	     Rep[DenseMatrix[Double]], 				// WORDSIZE X allPhrases.length
+		batchSize: Rep[Int],
+		numBatches: Rep[Int]
 	) {
 		tic("All Batches")
 		val results = (0::batches.length) { i =>
 			tic("Current Batch")
-			val batchTrees = batches(i)
+			//val batchTrees = batches(i)
+			val (batchTrees, batchWv, batchInds, batchMap) = createBatch(trees, Wv, i, batchSize, 0::tree.length)
+
 			val allNodesLabels = batchTrees.map(tree => tree.flatMap(level => level.getCol(LABEL)))
 			val nodeBinaryTotal = allNodesLabels.map(tree => tree.count(label => label != NEUTRALLABEL)).sum
 			val rootBinaryTotal = allNodesLabels.count(tree => tree(0) != NEUTRALLABEL)
 
 			val curBatchSize = batchTrees.length
 			val treesCorrect = (0::curBatchSize) { t =>
-				val outs = DenseVector.flatten( activateTree(batchTrees(t), Wc, W, Wt, Wv(words(i)) ) )
+				val outs = DenseVector.flatten( activateTree(batchTrees(t), Wc, W, Wt, batchWv) )
 
 				val binaryActs = outs.map(output => output(3) + output(4) > output(0) + output(1))	// assumes NUMCLASSES = 5
 				val labelsBinaryMatch = binaryActs.zip(allNodesLabels(t)) {(l1, l2) => (l1 && (l2 > NEUTRALLABEL)) || (!l1 && (l2 < NEUTRALLABEL))}
