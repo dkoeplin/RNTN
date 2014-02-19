@@ -142,7 +142,7 @@ trait RNTNTrainer extends OptiMLApplication with RNTNOps with Utilities {
 		val FILEPATH = "/home/david/PPL/data/rotten"
 		val OUTPUT	 = "/home/david/PPL/outputs/"
 		val DATASET = "/home/david/PPL/data/rotten"//if (args.length < 2) FILEPATH else args(0)
-
+		
 		// -------------------------------------------------------------------------------------//
 		//								Load Data (preProDataset.m)					  			//
 		// -------------------------------------------------------------------------------------//
@@ -212,11 +212,11 @@ trait RNTNTrainer extends OptiMLApplication with RNTNOps with Utilities {
 		val ssWt = DenseMatrix[Double](Wt.numRows, Wt.numCols)
 		val ssWv = DenseMatrix[Double](Wv.numRows, Wv.numCols)
 
-		writeMatrix(Wc, OUTPUT + "Wc_init.txt")
-		writeMatrix(W,  OUTPUT + "W_init.txt")
-		writeMatrix(Wt, OUTPUT + "Wt_init.txt")
-		writeMatrix(Wv, OUTPUT + "Wv_init.txt")
-
+		writeDoubleMatrix(Wc, OUTPUT + "Wc_init.txt")
+		writeDoubleMatrix(W,  OUTPUT + "W_init.txt")
+		writeDoubleMatrix(Wt, OUTPUT + "Wt_init.txt")
+		writeDoubleMatrix(Wv, OUTPUT + "Wv_init.txt")
+		
 		println("Weight initialization completed")
 		// -------------------------------------------------------------------------------------//
 		//								Run Training and Evaluation						  		//
@@ -226,10 +226,10 @@ trait RNTNTrainer extends OptiMLApplication with RNTNOps with Utilities {
 
 	   	var runIter = 1
 	   	while (runIter <= RUNSTHROUGHDATA) {
-			//println("Training run " + runIter + "/" + RUNSTHROUGHDATA)
-			//trainOnTrees(trainTrees, Wc, W, Wt, Wv, ssWc, ssW, ssWt, ssWv, TRAINBATCHSIZE, numTrainBatches)
-			//println("Completed run " + runIter + "/" + RUNSTHROUGHDATA)
-			//println("")
+			println("Training run " + runIter + "/" + RUNSTHROUGHDATA)
+			trainOnTrees(trainTrees, Wc, W, Wt, Wv, ssWc, ssW, ssWt, ssWv, TRAINBATCHSIZE, numTrainBatches)
+			println("Completed run " + runIter + "/" + RUNSTHROUGHDATA)
+			println("")
 			println(" --------------------- Train Set Accuracy (After " + runIter + "/" + RUNSTHROUGHDATA + ") --------------------- ")
 			evalOnTrees(trainBatches, trainWords, Wc, W, Wt, Wv)
 			println("-----------------------------------------------------------------------------")
@@ -238,11 +238,11 @@ trait RNTNTrainer extends OptiMLApplication with RNTNOps with Utilities {
 			evalOnTrees(devBatches, devWords, Wc, W, Wt, Wv)
 			println("-----------------------------------------------------------------------------")
 			println("")
-			//println("Writing out results...")
-			//writeMatrix(Wc, OUTPUT + "Wc_run" + runIter + ".txt")
-			//writeMatrix(W,  OUTPUT + "W_run" + runIter + ".txt")
-			//writeMatrix(Wt, OUTPUT + "Wt_run" + runIter + ".txt")
-			//writeMatrix(Wv, OUTPUT + "Wv_run" + runIter + ".txt")
+			println("Writing out results...")
+			writeDoubleMatrix(Wc, OUTPUT + "Wc_run" + runIter + ".txt")
+			writeDoubleMatrix(W,  OUTPUT + "W_run" + runIter + ".txt")
+			writeDoubleMatrix(Wt, OUTPUT + "Wt_run" + runIter + ".txt")
+			writeDoubleMatrix(Wv, OUTPUT + "Wv_run" + runIter + ".txt")
 			runIter += 1
 		}		
 
